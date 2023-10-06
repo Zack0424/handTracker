@@ -2,7 +2,7 @@
 A hand tracking app designed for car games
 
 > Please use the start.bat to launch the application
-
+> Make sure to put the folder in a location with no non Unicode characters in it's Path
 On first start the program will download the necessary packages, it could take some time depending on your internet connection
 
 
