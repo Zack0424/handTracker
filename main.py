@@ -2,7 +2,7 @@ import cv2
 import mediapipe as mp
 import threading
 import vgamepad as vg
-
+import pyvirtualcam
 
 # Define a global variable to store hand positions
 steering = ()
@@ -92,51 +92,56 @@ def get_hand_centers(camera_number = 0):
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands()
 
-    while True:
-        ret, frame = cap.read()  # Read frames from the webcam
+    with pyvirtualcam.Camera(width=640, height=480, fps=30, device="OBS Virtual Camera") as cam:
+        while True:
+            ret, frame = cap.read()  # Read frames from the webcam
 
 
-        if not ret:
-            break
-        frame = cv2.flip(frame, 1)
+            if not ret:
+                break
+            frame = cv2.flip(frame, 1)
 
-        frame_width = frame.shape[1]
-        frame_height = frame.shape[0]
+            frame_width = frame.shape[1]
+            frame_height = frame.shape[0]
 
-        # Calculate the x-coordinate of the vertical line in the middle
-        mid_x = frame_width // 2
+            # Calculate the x-coordinate of the vertical line in the middle
+            mid_x = frame_width // 2
 
-        # Convert the image to RGB
-        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert the image to RGB
+            image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Process the image with the hand tracking model
-        results = hands.process(image_rgb)
+            # Process the image with the hand tracking model
+            results = hands.process(image_rgb)
 
-        # Create a thread for hand landmark calculation
-        landmark_thread = threading.Thread(target=hand_landmark_worker, args=(results, frame.shape))
-        landmark_thread.start()
+            # Create a thread for hand landmark calculation
+            landmark_thread = threading.Thread(target=hand_landmark_worker, args=(results, frame.shape))
+            landmark_thread.start()
 
-        # Print the position and hand number
-        steering_on_axis = (steering[0] - 160)/160
-        throttle_on_axis = (240 - throttle[1])/240
+            # Print the position and hand number
+            steering_on_axis = (steering[0] - 160)/160
+            throttle_on_axis = (240 - throttle[1])/240
 
-        set_gamepad_joystick_positions(steering_on_axis,throttle_on_axis)
+            set_gamepad_joystick_positions(steering_on_axis,throttle_on_axis)
 
-        print(f"steering: {steering_on_axis}, throttle: {throttle_on_axis}")
+            print(f"steering: {steering_on_axis}, throttle: {throttle_on_axis}")
 
-        # Draw a circle at the center of the hand
-        if steering:
-            cv2.circle(frame, steering, 5, (0, 255, 0), -1)
-        if throttle:
-            cv2.circle(frame, throttle, 5, (0, 0, 255), -1)
+            # Draw a circle at the center of the hand
+            if steering:
+                cv2.circle(frame, steering, 5, (0, 255, 0), -1)
+            if throttle:
+                cv2.circle(frame, throttle, 5, (0, 0, 255), -1)
 
-        # Draw a vertical line in the middle of the frame
-        cv2.line(frame, (mid_x, 0), (mid_x, frame_height), (0, 0, 255), 2)
+            # Draw a vertical line in the middle of the frame
+            cv2.line(frame, (mid_x, 0), (mid_x, frame_height), (0, 0, 255), 2)
 
-        # Display the frame with the vertical line
-        cv2.imshow('Hand Tracking', frame)
-        if cv2.waitKey(1) == ord('q'):
-            break
+            bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+            cam.send(bgr_frame)
+            cam.sleep_until_next_frame()
+
+            cv2.imshow('Hand Tracking', frame)
+            if cv2.waitKey(1) == ord('q'):
+                break
 
     cap.release()
     cv2.destroyAllWindows()
@@ -169,7 +174,6 @@ def select_camera():
             pass
     return selected_camera
 if __name__ == '__main__':
-    print("Thank you for using this hand tracking app!\nPlease wait a second while it checks your available cameras")
     while True:
         try:
             camera_number = select_camera()
@@ -178,4 +182,3 @@ if __name__ == '__main__':
         except Exception:
             pass
     get_hand_centers(camera_number)
-
